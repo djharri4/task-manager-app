@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from './firebaseConfig'; 
@@ -18,24 +18,14 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        fetchTasks(); 
-      }
-    });
-    return () => unsubscribe();
-  }, [user]); 
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     if (!user) {
       console.error("User is not authenticated.");
       return;
     }
 
     try {
-      const q = query(collection(db, 'tasks'), where('userId', '==', user.uid)); 
+      const q = query(collection(db, 'tasks'), where('userId', '==', user.uid)); // Define query
       const querySnapshot = await getDocs(q); 
       const tasksArray = [];
       querySnapshot.forEach((doc) => {
@@ -45,7 +35,17 @@ function App() {
     } catch (error) {
       console.error("Error fetching tasks: ", error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        fetchTasks(); 
+      }
+    });
+    return () => unsubscribe();
+  }, [fetchTasks, user]); 
 
   const handleLogin = async (e) => {
     e.preventDefault();
